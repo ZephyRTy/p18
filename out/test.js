@@ -1,96 +1,85 @@
 import cheerio from 'cheerio';
 import fs from 'fs';
-import request from 'request';
-import { Stream } from './utils/stream.js';
+import { Circuit } from './object/Circuit.js';
+import { getImg } from './utils/getImg.js';
 const proxyIP = '127.0.0.1';
 const proxyPort = '10809';
-const proxy = 'http://' + proxyIP + ':' + proxyPort;
-let index = 829;
+export const proxy = 'http://' + proxyIP + ':' + proxyPort;
+let index = 355;
 let headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 Edg/98.0.1108.62'
+	'User-Agent':
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 Edg/98.0.1108.62'
 };
-let website = 'motherless';
+export let website = 'kfapfakes';
 if (!fs.existsSync(`D:\\koreanFake\\${website}`)) {
-    fs.mkdirSync(`D:\\koreanFake\\${website}`);
+	fs.mkdirSync(`D:\\koreanFake\\${website}`);
 }
 let domain = 'https://motherless.com';
 function sleep(time) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, time);
-    });
+	return new Promise((resolve) => {
+		setTimeout(resolve, time);
+	});
 }
-let tag = 'Im_Yoon-ah';
-let stream = new Stream((body) => {
-    let $ = cheerio.load(body);
-    let images = $('a.img-container');
-    let result = [];
-    images.each((i, ele) => {
-        let url = $(ele).attr('href');
-        if (!url)
-            return;
-        result.push({ url });
-    });
-    return result;
-}, { delay: 400 });
+// export let tag = 'IU_(singer)';
+// if (!fs.existsSync(`D:\\koreanFake\\${website}\\${tag}`)) {
+// 	fs.mkdirSync(`D:\\koreanFake\\${website}\\${tag}`);
+// }
 let links = [];
-for (let i = 1; i <= 14; i++) {
-    links.push(`https://motherless.com/u/georgeleelee?page=${i}&t=a`);
+for (let i = 1; i <= 1; i++) {
+	links.push(`http://kfapfakes.com/page/${i}/`);
 }
-stream.get(links, { proxy, headers });
+// let stream = new Stream(
+// 	(body: any) => {
+// 		let $ = cheerio.load(body);
+// 		let images = $('div.thumb a[href^="http"]');
+// 		let result: { src: string; index: number }[] = [];
+// 		images.each((i, ele) => {
+// 			let src = $(ele).attr('href');
+// 			if (!src) return;
+// 			result.push({ src, index: index++ });
+// 		});
+// 		return result;
+// 	},
+// 	{ delay: 400 }
+// );
+// stream.get(links, { proxy, headers });
 // stream.output(async (img) => {
 // 	await sleep(100).then(() => {
 // 		getImg(img);
 // 	});
 // });
-stream
-    .next((body) => {
-    let $ = cheerio.load(body);
-    let images = $('#motherless-media-image');
-    let result = [];
-    images.each((i, ele) => {
-        let src = $(ele).attr('src');
-        if (!src)
-            return;
-        result.push({ src, index: index++ });
-    });
-    return result;
-}, { delay: 500 })
-    .setNetOptions({ proxy, headers })
-    .output(async (img) => {
-    await sleep(100).then(() => {
-        getImg(img);
-    });
+let circle = new Circuit(
+	(body) => {
+		let $ = cheerio.load(body);
+		let images = $('.nextpostslink');
+		let result = [];
+		images.each((i, ele) => {
+			let url = $(ele).attr('href');
+			if (!url) return;
+			result.push(url);
+		});
+		return result;
+	},
+	(body) => {
+		let $ = cheerio.load(body);
+		let images = $('div.saxon-post-image img');
+		let result = [];
+		images.each((i, ele) => {
+			let src =
+				$(ele).attr('src').split('-').slice(0, -1).join('-') + '.jpg';
+			if (!src) return;
+			result.push({
+				src,
+				title: $(ele).attr('alt')?.split(' ').slice(0, -2).join(' '),
+				index: index++
+			});
+		});
+		return result;
+	}
+);
+circle.setNetOptions({ proxy, headers }).get('http://kfapfakes.com/page/60');
+circle.output(async (url) => {
+	await sleep(200).then(() => {
+		getImg(url);
+	});
 });
-function getImg(img) {
-    let type = 'jpg';
-    if (img.src.includes('gif')) {
-        type = 'gif';
-    }
-    try {
-        request({ url: img.src, proxy: proxy })
-            .on('error', (err) => {
-            console.error(err);
-            console.log(img.src);
-        })
-            .pipe(fs
-            .createWriteStream(`D:\\koreanFake\\${website}\\${img.index}.${type}`, {
-            autoClose: true
-        })
-            .on('error', (err) => {
-            console.error(err);
-            console.log(img.src);
-        })
-            .on('finish', () => {
-            console.log(img.index + ' done');
-        })
-            .on('close', (err) => {
-            if (err) {
-                console.log('写入失败', err);
-            }
-        }));
-    }
-    catch (error) {
-        console.error(error);
-        console.log(img + ' download Error');
-    }
-}

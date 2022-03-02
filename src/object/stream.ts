@@ -1,27 +1,20 @@
+import { DONE_SIG_OF_PIPE, Pipe } from '../types/pipe.js';
 import { HasProperty } from '../types/types.js';
+import { sleep } from '../utils/sleep.js';
 import { Request } from './request.js';
-type DONE_SIG = -1;
-const DONE_SIG_OF_PIPE = -1;
-type Pipe<T> = { target: Stream<any, any, any> | null } & Generator<
-	T,
-	undefined,
-	unknown
->;
-function sleep(time: number) {
-	return new Promise((resolve) => {
-		setTimeout(resolve, time);
-	});
-}
+
 export class Stream<IN, MID, OUT> {
 	// T 输出数据类型，K为接收数据类型
 	status = true;
-	private end: null | ((data: IN) => void) = null;
-	private option: any = {};
-	private netOptions: any = {};
-	private pendingQueue: Promise<any>[] = [];
-	private pool: OUT[] = []; //输出结果池
-	private connection: Pipe<IN> | null = null; //外部管道
-	private pipe: Pipe<OUT> = (function* (pool: OUT[]) {
+	protected pool: OUT[] = []; //输出结果池
+
+	//输出结果池
+	protected connection!: Pipe<IN> | null; //外部管道
+	protected pendingQueue: Promise<any>[] = [];
+	private endProcessor: null | ((data: IN) => void) = null;
+	protected option: any = {};
+	protected netOptions: any = {};
+	protected pipe: Pipe<OUT> = (function* (pool: OUT[]) {
 		while (true) {
 			let el = pool.shift();
 			if (!el) {
@@ -42,19 +35,19 @@ export class Stream<IN, MID, OUT> {
 				| string[]
 				| HasProperty<MID, 'url'>
 				| HasProperty<MID, 'url'>[]) = null; // 处理输入数据
-
 	parser: ((body: unknown, data: MID) => OUT[]) | null; // 处理HTML数据,并输出
-
 	constructor(parser?: (body: unknown, data: MID) => OUT[], options?: any) {
-		this.pipe.target = null;
 		this.parser = parser ?? null;
+		this.connection = null;
+		this.pipe.target = null;
+		this.option = options;
 	}
 
 	setParser(parser: (body: any, data: MID) => OUT[]) {
 		this.parser = parser;
 	}
 	setEnd(end: (data: IN) => void) {
-		this.end = end;
+		this.endProcessor = end;
 	}
 	setPreprocessor(
 		preprocessor: (
@@ -97,7 +90,7 @@ export class Stream<IN, MID, OUT> {
 	/**
 	 * 从外部管道中抽取数据
 	 */
-	private extract() {
+	extract() {
 		let { value, done } =
 			(this.connection?.next() as { value: IN; done: boolean }) || {};
 		if (done) {
@@ -117,10 +110,10 @@ export class Stream<IN, MID, OUT> {
 			throw new Error('preprocessor is not defined');
 		}
 		if (!this.parser && !this.preprocessor) {
-			if (!this.end) {
+			if (!this.endProcessor) {
 				throw new Error('preprocessor is not defined');
 			} else {
-				this.end(value);
+				this.endProcessor(value);
 				return;
 			}
 		}
@@ -169,16 +162,16 @@ export class Stream<IN, MID, OUT> {
 	 * 往数据池中注入数据
 	 * @param data 输入的数据
 	 */
-	private inject(res: HasProperty<MID, 'body'>) {
+	protected inject(res: HasProperty<MID, 'body'>) {
 		let { body, ...data } = res as any;
 		if (!this.parser) {
 			throw Error('parser is not defined');
 		}
 		let result = this.parser(body, data);
 		if (Array.isArray(result)) {
-			this.pool.push(...result);
+			this.push(...result);
 		} else {
-			this.pool.push(result);
+			this.push(result);
 		}
 		let count = result.length ?? 1;
 		for (let i = 0; i < count; i++) {
@@ -186,17 +179,17 @@ export class Stream<IN, MID, OUT> {
 		}
 	}
 
-	/**
-	 *
-	 * @param req 输入的网络请求
-	 * @param processor 对输出结果的处理
-	 */
-	private pending(req: Promise<any>) {
+	protected pending(req: Promise<any>) {
 		this.pendingQueue.push(req);
 		req.then((res) => {
 			this.inject(res);
 		});
 	}
+	/**
+	 *
+	 * @param req 输入的网络请求
+	 * @param processor 对输出结果的处理
+	 */
 
 	/**
 	 * 所有输入结束时，调用此方法，往池中传入DONE_SIG
@@ -204,11 +197,12 @@ export class Stream<IN, MID, OUT> {
 	finish() {
 		Promise.all(this.pendingQueue).then(() => {
 			console.log('done');
-			this.status = false;
 			this.pool.push(DONE_SIG_OF_PIPE as any);
 		});
 	}
-
+	protected push(...data: OUT[]) {
+		this.pool.push(...data);
+	}
 	async break() {
 		await Promise.all(this.pendingQueue).then(() => {
 			this.status = false;

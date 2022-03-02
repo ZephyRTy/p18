@@ -1,2 +1,7 @@
- ./src/*
- ./out
+src/*.js
+src/test.ts
+out/*
+out/test.js
+out/test.js
+.gitignore
+src/test.ts
