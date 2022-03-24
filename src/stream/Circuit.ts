@@ -5,22 +5,29 @@ import { Stream } from './stream.js';
 export class Circuit<IN, MID, OUT> extends Stream<IN, MID, OUT> {
 	private urlPool: string[] = [];
 	private urlParser: (body: unknown) => string[] | string;
+	private max = 0;
+	private count = 0;
 	constructor(
 		urlParser: (body: unknown) => string[] | string,
 		parser?: (body: unknown, data: MID) => OUT[],
 		options?: any
 	) {
 		super(parser, options);
+		this.max = options['max'] ?? 0;
 		this.urlParser = urlParser;
 	}
-	async get(url: string) {
+	async collect(url: string) {
 		this.pending(Request.get(url, this.netOptions));
 	}
 	private getNewUrl(body: unknown) {
+		if (this.max && this.count >= this.max) {
+			this.readyToClose();
+			return;
+		}
+		++this.count;
 		let url = this.urlParser(body);
 		if (!url || url.length === 0) {
-			console.log('url is empty');
-			this.finish();
+			this.readyToClose();
 			return;
 		}
 		if (Array.isArray(url)) {
@@ -28,7 +35,7 @@ export class Circuit<IN, MID, OUT> extends Stream<IN, MID, OUT> {
 		} else {
 			this.urlPool.push(url);
 		}
-		this.get(this.urlPool.shift() as string);
+		this.collect(this.urlPool.shift() as string);
 	}
 	protected inject(res: HasProperty<MID, 'body'>) {
 		let { body, ...data } = res as any;
@@ -36,22 +43,26 @@ export class Circuit<IN, MID, OUT> extends Stream<IN, MID, OUT> {
 			throw Error('parser is not defined');
 		}
 		let result = this.parser(body, data);
+		let count = 1;
 		if (Array.isArray(result)) {
+			if (result.length === 0) {
+				return;
+			}
+			count = result.length;
 			this.push(...result);
 		} else {
 			this.push(result);
 		}
-		let count = result.length ?? 1;
 		for (let i = 0; i < count; i++) {
 			this.pipe.target?.extract();
 		}
 	}
+
 	protected pending(req: Promise<any>) {
 		this.pendingQueue.push(req);
 		req.then((res: HasProperty<MID, 'body'>) => {
-			this.getNewUrl((res as any).body);
 			this.inject(res);
+			this.getNewUrl((res as any).body);
 		});
 	}
-	finish(): void {}
 }

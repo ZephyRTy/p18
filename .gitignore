@@ -5,3 +5,4 @@ out/test.js
 out/test.js
 .gitignore
 src/test.ts
+node_modules

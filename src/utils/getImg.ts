@@ -1,22 +1,19 @@
 import fs from 'fs';
 import request from 'request';
-import { proxy, website } from '../test.js';
+import { proxy } from '../test.js';
 
 export function getImg(img: { src: string; index: number; title: string }) {
-	let type = 'jpg';
-	if (img.src.includes('gif')) {
-		type = 'gif';
-	}
 	try {
 		request({ url: img.src, proxy: proxy })
 			.on('error', (err) => {
 				console.error(err);
-				console.log(img.src);
+				console.log(img.title);
 			})
 			.pipe(
 				fs
 					.createWriteStream(
-						`D:\\koreanFake\\${website}\\${img.title} ${img.index}.${type}`,
+						String.raw`D:\img\show_img\图片` +
+							`\\${img.title}\\${img.index}.jpg`,
 						{
 							autoClose: true
 						}
@@ -24,9 +21,6 @@ export function getImg(img: { src: string; index: number; title: string }) {
 					.on('error', (err) => {
 						console.error(err);
 						console.log(img.src);
-					})
-					.on('finish', () => {
-						console.log(img.index + ' done');
 					})
 					.on('close', (err: any) => {
 						if (err) {
