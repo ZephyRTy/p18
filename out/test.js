@@ -33,7 +33,7 @@ let domain = 'https://www.112w.cc/';
 // 		getImg(img);
 // 	});
 // });
-let mode = 'missing';
+let mode = 'new';
 let catalog = mode === 'new'
     ? JSON.parse(fs.readFileSync(String.raw `D:\webDemo\desktop-reader\catalog.json`, 'utf-8'))
     : [];
@@ -77,8 +77,8 @@ let getNewPacks = new Circuit((body) => {
                 return;
             }
             newPacks.push({ title, stared: false, index: total++ });
+            console.log(title);
         }
-        console.log(title);
         try {
             fs.mkdirSync(String.raw `D:\img\show_img\图片` + '\\' + title);
         }
@@ -93,10 +93,10 @@ let getNewPacks = new Circuit((body) => {
         });
     });
     return result;
-}, { max: 63 });
+}, { max: 1 });
 Request.options = { proxy, headers };
 getNewPacks.collect('https://www.112w.cc/c49.aspx');
-const pages = new Stream((body, data) => {
+const pages = Stream.create((body, data) => {
     let $ = cheerio.load(body);
     let res = $('div.pager a')
         .slice(0, -1)
@@ -113,7 +113,7 @@ const pages = new Stream((body, data) => {
         .toArray();
     //console.log(data.title + ' has ' + res.length + ' pages');
     return [{ url: data.current, page: 1, title: data.title }, ...res];
-}, { delay: 1500 }, { title: '', url: '', current: '' });
+}, { delay: 1500 });
 let titles = new Set();
 const imgs = new Stream((body, data) => {
     if (data.page === 1) {

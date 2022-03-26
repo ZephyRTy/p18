@@ -47,7 +47,7 @@ export class Stream<IN, MID, OUT> extends StreamEntry<IN, MID, OUT> {
 	preprocessor: null | ((data: IN) => midType<MID> | midType<MID>[]) = null; // 处理输入数据
 	// 处理HTML数据,并输出
 	constructor(
-		parser?: (body: any, data: MID) => OUT[],
+		parser: (body: any, data: MID) => OUT[],
 		options?: any,
 		inType?: IN
 	) {
@@ -161,12 +161,20 @@ export class Stream<IN, MID, OUT> extends StreamEntry<IN, MID, OUT> {
 		}
 	}
 	exec(url: midType<MID> | midType<MID>[]) {
-		this.exec(url);
+		if (this.id) {
+			if (Array.isArray(url)) {
+				this.awaitedQueue.push(...url);
+			} else {
+				this.awaitedQueue.push(url);
+			}
+			return;
+		}
+		this.get(url);
 	}
 
 	/**
 	 * 往数据池中注入数据
-	 * @param data 输入的数据
+	 * @param res 输入的数据
 	 */
 	protected inject(res: HasProperty<MID, 'body'>) {
 		let { body, ...data } = res as any;
@@ -248,12 +256,10 @@ export class Stream<IN, MID, OUT> extends StreamEntry<IN, MID, OUT> {
 		}
 		return new Stream<HasProperty<B, 'url'>, B, C>(parser, options);
 	}
-	output(endFunction: (data: OUT) => void, options?: any) {
-		let exit = new Exit<OUT>(endFunction, options);
+	output(endParser: (data: OUT) => void, options?: any) {
+		let exit = new Exit<OUT>(endParser, options);
 		this.pipe.target = exit;
 		exit.connection = this.pipe;
 		return exit;
 	}
-
-	setType(type: IN) {}
 }

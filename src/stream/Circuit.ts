@@ -9,18 +9,18 @@ export class Circuit<IN, MID, OUT> extends Stream<IN, MID, OUT> {
 	private count = 0;
 	constructor(
 		urlParser: (body: unknown) => string[] | string,
-		parser?: (body: unknown, data: MID) => OUT[],
+		parser: (body: unknown, data: MID) => OUT[],
 		options?: any
 	) {
 		super(parser, options);
-		this.max = options['max'] ?? 0;
+		this.max = options?.['max'] ?? 0;
 		this.urlParser = urlParser;
 	}
-	async collect(url: string) {
+	collect(url: string) {
 		this.pending(Request.get(url, this.netOptions));
 	}
 	private getNewUrl(body: unknown) {
-		if (this.max && this.count >= this.max) {
+		if (this.max > 0 && this.count >= this.max) {
 			this.readyToClose();
 			return;
 		}

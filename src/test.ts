@@ -36,7 +36,7 @@ let domain = 'https://www.112w.cc/';
 // 	});
 // });
 
-let mode = 'missing';
+let mode = 'new';
 let catalog: { title: string; index: number; stared: boolean }[] =
 	mode === 'new'
 		? JSON.parse(
@@ -95,8 +95,9 @@ let getNewPacks = new Circuit(
 					return;
 				}
 				newPacks.push({ title, stared: false, index: total++ });
+				console.log(title);
 			}
-			console.log(title);
+
 			try {
 				fs.mkdirSync(String.raw`D:\img\show_img\图片` + '\\' + title);
 			} catch (e) {}
@@ -110,7 +111,7 @@ let getNewPacks = new Circuit(
 		});
 		return result;
 	},
-	{ max: 63 }
+	{ max: 1 }
 );
 Request.options = { proxy, headers };
 getNewPacks.collect('https://www.112w.cc/c49.aspx');

@@ -1,6 +1,6 @@
 import { StreamEntry } from '../types/pipe';
 
-export class Exit<IN, MID = any, OUT = any> extends StreamEntry<IN, any, any> {
+export class Exit<IN> extends StreamEntry<IN, any, any> {
 	private endProcessor: (data: IN) => void;
 	private closeFunction: (() => void) | null = null;
 	private awaitedQueue: IN[] = [];

@@ -7,6 +7,5 @@ export type HasProperty<
 	: T & {
 			[P in K]: U extends undefined ? any : U;
 	  };
-let a: HasProperty<{ b: 2 }, 'a'> = { a: 1, b: 2 };
 export type Url<T> = T extends string ? { url: T } : T;
 export type midType<T> = T extends string ? string : HasProperty<T, 'url'>;
